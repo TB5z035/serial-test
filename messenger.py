@@ -1,5 +1,7 @@
 import serial
-import socket
+import asyncio
+from websockets.server import serve
+from websockets.sync.client import connect
 import time
 
 class Messenger:
@@ -24,20 +26,25 @@ class SerialMessenger(Messenger):
         return self.ser.read_until(b'\n')
 
 class WebsocketMessenger(Messenger):
-    def __init__(self, host: str, port: int, is_server=False, **kwargs):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def __init__(self, host, port, is_server=False) -> None:
         if is_server:
-            self.sock.bind((host, port))
-            self.sock.listen(1)
-            self.sock, _ = self.sock.accept()
+            self.buffer = b''
+            self.host = host
+            self.port = port
+            asyncio.run(serve())
         else:
-            self.sock.connect((host, port))
-    
-    def __del__(self):
-        self.sock.close()
+            self.websocket = connect(host, port)
+
+    async def update(self, websocket):
+        async for message in websocket:
+            self.buffer = message
+
+    async def serve(self):
+        async with serve(self.update, self.host, self.port):
+            await asyncio.Future()  # run forever
     
     def send(self, message: bytes):
-        self.sock.sendall(message)
+        self.websocket.send(message)
     
     def recv(self) -> bytes:
-        return self.sock.recv(1024)
+        return self.buffer
