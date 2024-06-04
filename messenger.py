@@ -33,7 +33,7 @@ class WebsocketMessenger(Messenger):
             self.port = port
             asyncio.run(serve())
         else:
-            self.websocket = connect(host, port)
+            self.websocket = connect(f"ws://{host}:{port}")
 
     async def update(self, websocket):
         async for message in websocket:
