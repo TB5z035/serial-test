@@ -6,18 +6,24 @@ import time
 import pickle
 
 async def main(args):
-    robot_left = airbot.create_agent(can_interface=args.left)
-    robot_right = airbot.create_agent(can_interface=args.right)
+    robot_left = airbot.create_agent(can_interface=args.left, end_mode="teacherv2")
+    robot_right = airbot.create_agent(can_interface=args.right, end_mode="teacherv2")
+    robot_left.set_max_current([100, 100, 100, 100, 100, 100])
+    robot_right.set_max_current([100, 100, 100, 100, 100, 100])
     uri = f"ws://{args.host}:{args.port}"
-    async with websockets.connect(uri) as websocket:
-        while True:
-            time.sleep(0.0005)
-            await websocket.send(pickle.dumps({
-                'left': robot_left.get_current_joint_q(),
-                'right': robot_right.get_current_joint_q(),
-                'left_end': robot_left.get_current_end(),
-                'right_end': robot_right.get_current_end(),
-            }))
+    async for websocket in websockets.connect(uri, ping_timeout=None, ping_interval=None):
+        try:
+            while True:
+                time.sleep(0.0005)
+                await websocket.send(pickle.dumps({
+                    'left': robot_left.get_current_joint_q(),
+                    'right': robot_right.get_current_joint_q(),
+                    'left_end': robot_left.get_current_end(),
+                    'right_end': robot_right.get_current_end(),
+                }))
+        except Exception as e:
+            print(type(e), e)
+            print("Reconnecting...")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Send data to the airbot')
